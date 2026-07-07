@@ -1,0 +1,21 @@
+# локальная копия Android SDK platform-tools (скачивается для отладки)
+/adb/
+
+/.gradle/
+# генерируется задачей prepareAppIcon из корневого icon.jpg
+/app/src/main/res/drawable/app_icon.png
+/build/
+**/build/
+/.idea/
+/.cursor/
+*.iml
+local.properties
+keystore.properties
+*.jks
+*.keystore
+ci-release.keystore
+.DS_Store
+# внутренние заметки разработки (не в репозитории)
+PLAN.md
+/log
+/logs

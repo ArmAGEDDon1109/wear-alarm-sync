@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dismiss">Выключить</string>
+    <string name="snooze">Отложить</string>
+    <string name="wear_setting_suppress_off_body">Не будить, если часы сняты</string>
+    <string name="wear_setting_suppress_off_body_hint">По умолчанию снятые часы тоже будят. Включите и разрешите «Датчики тела» — сигнал на часах не показывается, пока часы не на руке.</string>
+</resources>
