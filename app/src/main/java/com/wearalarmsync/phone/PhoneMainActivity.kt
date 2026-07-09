@@ -7,8 +7,12 @@ import android.util.TypedValue
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.text.InputType
 import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -16,10 +20,12 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.wearable.Wearable
+import com.wearalarmsync.AlarmSyncPrefs
 import com.wearalarmsync.BuildConfig
 import com.wearalarmsync.ExactAlarmPermission
 import com.wearalarmsync.R
@@ -70,7 +76,13 @@ class PhoneMainActivity : AppCompatActivity() {
             runSyncAndShow(connection, progress, status, syncButton)
         }
 
+        findViewById<Button>(R.id.alarmSourcesButton).setOnClickListener {
+            showAlarmSourcesDialog(status)
+        }
+        updateAlarmSourcesSummary()
+
         refreshWatchConnection(connection)
+        status.text = describeNextAlarm()
         runSyncAndShow(connection, progress, status, syncButton)
 
         window.decorView.postDelayed({
@@ -158,8 +170,129 @@ class PhoneMainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshWatchConnection(findViewById(R.id.connectionText))
+        updateAlarmSourcesSummary()
         AlarmSync.pushNextAlarm(this)
         VibrationSync.push(this)
+    }
+
+    private fun updateAlarmSourcesSummary() {
+        val summaryView = findViewById<TextView>(R.id.alarmSourcesSummary)
+        val allowed = AlarmSyncPrefs.allowedPackages(this)
+        if (allowed.isEmpty()) {
+            summaryView.text = getString(R.string.phone_alarm_sources_none)
+            return
+        }
+        val labels = allowed.map { AlarmSourceApps.displayLabelFor(this, it) }
+        summaryView.text = getString(R.string.phone_alarm_sources_summary, labels.joinToString(", "))
+    }
+
+    private fun showAlarmSourcesDialog(status: TextView) {
+        val apps = AlarmSourceApps.discover(this)
+        if (apps.isEmpty()) {
+            MaterialAlertDialogBuilder(this)
+                .setMessage(R.string.phone_alarm_sources_empty)
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+            return
+        }
+        val allowed = AlarmSyncPrefs.allowedPackages(this).toMutableSet()
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+        val checkboxes = LinkedHashMap<String, MaterialCheckBox>()
+        for (app in apps) {
+            val checkbox = MaterialCheckBox(this).apply {
+                text = app.displayLabel()
+                isChecked = app.packageName in allowed
+            }
+            checkboxes[app.packageName] = checkbox
+            container.addView(checkbox)
+        }
+        val scroll = ScrollView(this).apply { addView(container) }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.phone_alarm_sources_title)
+            .setView(scroll)
+            .setNeutralButton(R.string.phone_alarm_sources_add_package) { _, _ ->
+                showAddPackageDialog(status, allowed, checkboxes, container, scroll)
+            }
+            .setPositiveButton(R.string.vibration_save) { _, _ ->
+                saveAlarmSourcesSelection(status, checkboxes)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun saveAlarmSourcesSelection(
+        status: TextView,
+        checkboxes: Map<String, MaterialCheckBox>,
+    ) {
+        val selected = checkboxes.filterValues { it.isChecked }.keys
+        AlarmSyncPrefs.writeAllowedPackages(this, selected)
+        updateAlarmSourcesSummary()
+        AlarmSync.pushNextAlarm(this)
+        status.text = describeNextAlarm()
+    }
+
+    private fun showAddPackageDialog(
+        status: TextView,
+        allowed: MutableSet<String>,
+        checkboxes: LinkedHashMap<String, MaterialCheckBox>,
+        container: LinearLayout,
+        scroll: ScrollView,
+    ) {
+        val input = EditText(this).apply {
+            hint = getString(R.string.phone_alarm_sources_add_hint)
+            inputType = InputType.TYPE_CLASS_TEXT
+            val pad = (16 * resources.displayMetrics.density).toInt()
+            setPadding(pad, pad, pad, pad)
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.phone_alarm_sources_add_package)
+            .setMessage(R.string.phone_alarm_sources_add_message)
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val pkg = input.text?.toString()?.trim().orEmpty()
+                if (pkg.isEmpty()) return@setPositiveButton
+                val pm = packageManager
+                val installed = try {
+                    pm.getApplicationInfo(pkg, 0)
+                    true
+                } catch (_: Exception) {
+                    false
+                }
+                if (!installed) {
+                    MaterialAlertDialogBuilder(this)
+                        .setMessage(getString(R.string.phone_alarm_sources_unknown_package, pkg))
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                    return@setPositiveButton
+                }
+                AlarmSyncPrefs.addManualPackage(this, pkg)
+                allowed.add(pkg)
+                if (pkg !in checkboxes) {
+                    val app = AlarmSourceApps.discover(this).find { it.packageName == pkg }
+                        ?: AlarmSourceApp(
+                            pkg,
+                            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString(),
+                            AlarmSourceKind.MANUAL,
+                        )
+                    val checkbox = MaterialCheckBox(this).apply {
+                        text = app.displayLabel()
+                        isChecked = true
+                    }
+                    checkboxes[pkg] = checkbox
+                    container.addView(checkbox)
+                } else {
+                    checkboxes[pkg]?.isChecked = true
+                }
+                saveAlarmSourcesSelection(status, checkboxes)
+            }
+            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                showAlarmSourcesDialog(status)
+            }
+            .show()
     }
 
     private fun refreshWatchConnection(connectionText: TextView) {
@@ -233,6 +366,7 @@ class PhoneMainActivity : AppCompatActivity() {
         val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val next = am.nextAlarmClock
         val now = System.currentTimeMillis()
+        val allowed = AlarmSyncPrefs.allowedPackages(this)
         val noToday = getString(R.string.no_alarm_today)
         if (next == null || next.triggerTime == WearSync.NO_ALARM) {
             return noToday
@@ -240,6 +374,15 @@ class PhoneMainActivity : AppCompatActivity() {
         val raw = next.triggerTime
         if (raw <= now) {
             return noToday
+        }
+        if (!AlarmSourceRecognizer.isAllowedSource(next, allowed)) {
+            val pkg = AlarmSourceRecognizer.creatorPackage(next)
+            val appLabel = pkg?.let { AlarmSourceApps.displayLabelFor(this, it) } ?: "?"
+            return getString(R.string.phone_source_not_allowed, appLabel ?: "?")
+        }
+        val synced = NextAlarmResolver.triggerForWatchSync(raw, now)
+        if (NextAlarmResolver.wasFilteredAsMidnightGhost(raw, synced, now)) {
+            return getString(R.string.phone_midnight_sync_skipped)
         }
         val whenStr = DateFormat.getDateTimeInstance(
             DateFormat.SHORT,

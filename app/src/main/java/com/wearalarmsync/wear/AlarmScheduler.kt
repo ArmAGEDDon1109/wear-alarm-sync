@@ -125,7 +125,7 @@ object AlarmScheduler {
     }
 
     /** Ближайшее будущее время среди основного триггера и очереди с телефона (без вывода очереди на экран). */
-    private fun earliestFutureTrigger(primary: Long, queueMs: LongArray, now: Long): Long {
+    private fun earliestFutureTrigger(context: Context, primary: Long, queueMs: LongArray, now: Long): Long {
         val cand = ArrayList<Long>(4)
         fun consider(t: Long) {
             if (t != WearSync.NO_ALARM && t > now && !AlarmToday.isExactMidnightLocal(t)) {
@@ -194,7 +194,7 @@ object AlarmScheduler {
             }
             else -> {
                 val best = scan.rows.maxWith(rowComparator(now))
-                val effective = earliestFutureTrigger(best.trigger, best.queueMs, now)
+                val effective = earliestFutureTrigger(context, best.trigger, best.queueMs, now)
                 Log.d(TAG, "readBestSyncedTrigger: effective=$effective syncVer=${best.version}")
                 effective
             }

@@ -22,17 +22,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
-import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import com.wearalarmsync.R
 import com.wearalarmsync.VibrationAlarmPattern
 import com.wearalarmsync.VibrationPrefs
 import com.wearalarmsync.common.WearSync
+import com.wearalarmsync.ui.ColoredAlarmButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -100,9 +102,9 @@ class AlarmActivity : ComponentActivity() {
                             textAlign = TextAlign.Center,
                         )
                     }
-                    Button(
+                    ColoredAlarmButton(
                         onClick = {
-                            if (busy) return@Button
+                            if (busy) return@ColoredAlarmButton
                             busy = true
                             scope.launch {
                                 val next = withContext(Dispatchers.IO) {
@@ -124,12 +126,12 @@ class AlarmActivity : ComponentActivity() {
                         },
                         modifier = Modifier.padding(top = 16.dp),
                         enabled = !busy,
-                    ) {
-                        Text(stringResource(R.string.dismiss))
-                    }
-                    Button(
+                        text = stringResource(R.string.dismiss),
+                        backgroundColor = colorResource(R.color.alarm_dismiss_green),
+                    )
+                    ColoredAlarmButton(
                         onClick = {
-                            if (busy) return@Button
+                            if (busy) return@ColoredAlarmButton
                             busy = true
                             scope.launch {
                                 val next = withContext(Dispatchers.IO) {
@@ -151,9 +153,9 @@ class AlarmActivity : ComponentActivity() {
                         },
                         modifier = Modifier.padding(top = 8.dp),
                         enabled = !busy,
-                    ) {
-                        Text(stringResource(R.string.snooze))
-                    }
+                        text = stringResource(R.string.snooze),
+                        backgroundColor = colorResource(R.color.alarm_snooze_red),
+                    )
                     }
                 }
             }

@@ -22,21 +22,22 @@ object AlarmQueueTracker {
         val now = System.currentTimeMillis()
         val lastPrimary = prefs.getLong(KEY_LAST_PRIMARY, WearSync.NO_ALARM)
 
+        fun isAllowed(t: Long): Boolean =
+            t != WearSync.NO_ALARM && t > now && !AlarmToday.isExactMidnightLocal(t)
+
         val slots = prefs.getString(KEY_SLOTS, null)
             ?.split(',')
             ?.mapNotNull { it.trim().toLongOrNull() }
-            ?.filter { it != WearSync.NO_ALARM && it > now && !AlarmToday.isExactMidnightLocal(it) }
+            ?.filter { isAllowed(it) }
             ?.toMutableSet()
             ?: mutableSetOf()
 
         when {
-            primaryMs != WearSync.NO_ALARM &&
-                primaryMs > now &&
-                !AlarmToday.isExactMidnightLocal(primaryMs) -> {
+            isAllowed(primaryMs) -> {
                 if (lastPrimary != WearSync.NO_ALARM &&
                     lastPrimary != primaryMs &&
                     lastPrimary > now &&
-                    !AlarmToday.isExactMidnightLocal(lastPrimary)
+                    isAllowed(lastPrimary)
                 ) {
                     slots.add(lastPrimary)
                 }
@@ -47,10 +48,7 @@ object AlarmQueueTracker {
             }
         }
 
-        if (primaryMs != WearSync.NO_ALARM &&
-            primaryMs > now &&
-            !AlarmToday.isExactMidnightLocal(primaryMs)
-        ) {
+        if (isAllowed(primaryMs)) {
             slots.add(primaryMs)
         }
 

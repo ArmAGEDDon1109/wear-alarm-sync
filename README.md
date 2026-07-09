@@ -4,7 +4,7 @@
 
 Sync your phone's next system alarm to a Wear OS watch and ring it on the watch. Dismiss or snooze from the watch — the action is forwarded to the phone's Clock app.
 
-**Current version:** 2.1.14 (versionCode 28)
+**Current version:** 2.2.0 (versionCode 29)
 
 ## What it does
 

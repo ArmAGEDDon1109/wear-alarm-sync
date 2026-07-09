@@ -6,15 +6,13 @@ import com.wearalarmsync.common.WearSync
 
 /**
  * [android.app.AlarmManager.getNextAlarmClock] возвращает один «следующий» сигнал по всей системе.
- * Часто это **00:00 начала суток** (календарь, напоминание, «событие»), хотя в «Часах» следующий по смыслу — утренний.
- * На часы тогда уезжает полночь, а «на завтра» кажется, что будильники не переносятся.
+ * Полуночь (календарь и т.п.) всегда отфильтровывается; опция «только Часы» — в [AlarmSync].
  */
 object NextAlarmResolver {
     private const val TAG = "NextAlarmResolver"
     private const val ONE_HOUR_MS = 60L * 60 * 1000
     private const val FORTY_EIGHT_H_MS = 48L * 60 * 60 * 1000
 
-    /** Время для записи в Data Layer на часы (может быть [WearSync.NO_ALARM], если отфильтровали «полуночный» шум). */
     fun triggerForWatchSync(rawTriggerMs: Long, nowMs: Long): Long {
         if (rawTriggerMs == WearSync.NO_ALARM || rawTriggerMs <= nowMs) {
             return WearSync.NO_ALARM
@@ -26,7 +24,7 @@ object NextAlarmResolver {
         if (delta in ONE_HOUR_MS until FORTY_EIGHT_H_MS) {
             Log.w(
                 TAG,
-                "Skip syncing start-of-day nextAlarmClock at $rawTriggerMs (delta=${delta}ms); expect NEXT_ALARM_CLOCK_CHANGED after real next becomes morning alarm",
+                "Skip syncing start-of-day nextAlarmClock at $rawTriggerMs (delta=${delta}ms)",
             )
             return WearSync.NO_ALARM
         }

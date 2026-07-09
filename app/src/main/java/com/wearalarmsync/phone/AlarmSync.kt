@@ -10,12 +10,12 @@ import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.DataItem
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
+import com.wearalarmsync.AlarmSyncPrefs
 import com.wearalarmsync.common.WearSync
 
 object AlarmSync {
     private const val TAG = "AlarmSync"
 
-    /** Pushes next system alarm time to the watch data layer; result is reported on the returned [Task]. */
     fun pushNextAlarm(context: Context): Task<DataItem> {
         val app = context.applicationContext
         val gms = GoogleApiAvailability.getInstance()
@@ -29,8 +29,21 @@ object AlarmSync {
 
         val am = app.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val next = am.nextAlarmClock
-        val rawTrigger = next?.triggerTime ?: WearSync.NO_ALARM
+        AlarmSourceApps.recordObservedPackage(app, AlarmSourceRecognizer.creatorPackage(next))
         val now = System.currentTimeMillis()
+        val allowed = AlarmSyncPrefs.allowedPackages(app)
+
+        val rawFromSystem = next?.triggerTime ?: WearSync.NO_ALARM
+        val rawTrigger = when {
+            rawFromSystem == WearSync.NO_ALARM || rawFromSystem <= now -> WearSync.NO_ALARM
+            !AlarmSourceRecognizer.isAllowedSource(next, allowed) -> {
+                val pkg = AlarmSourceRecognizer.creatorPackage(next) ?: "?"
+                Log.w(TAG, "Skipping nextAlarmClock from $pkg (not in allowed sources)")
+                WearSync.NO_ALARM
+            }
+            else -> rawFromSystem
+        }
+
         val triggerMs = NextAlarmResolver.triggerForWatchSync(rawTrigger, now)
         val queueMs = AlarmQueueTracker.observePrimary(app, triggerMs)
 
@@ -43,7 +56,10 @@ object AlarmSync {
 
         val task = Wearable.getDataClient(app).putDataItem(putReq)
         task.addOnSuccessListener {
-            Log.d(TAG, "Synced next alarm: raw=$rawTrigger -> watch=$triggerMs queue=${queueMs.contentToString()}")
+            Log.d(
+                TAG,
+                "Synced next alarm: system=$rawFromSystem allowed=${allowed.size} -> watch=$triggerMs queue=${queueMs.contentToString()}",
+            )
         }
         task.addOnFailureListener { e -> Log.e(TAG, "putDataItem failed", e) }
         return task
