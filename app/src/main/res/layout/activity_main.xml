@@ -59,17 +59,8 @@
                 android:id="@+id/alarmSourcesButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
                 android:text="@string/phone_alarm_sources_button" />
-
-            <TextView
-                android:id="@+id/alarmSourcesSummary"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingTop="4dp"
-                android:paddingBottom="16dp"
-                android:alpha="0.8"
-                android:textAlignment="viewStart"
-                android:textAppearance="?attr/textAppearanceBodySmall" />
 
             <Button
                 android:id="@+id/syncButton"

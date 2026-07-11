@@ -67,12 +67,6 @@ if (-not (Test-Path $apk)) {
 Start-Sleep -Seconds 10
 Capture-Screen $PhoneSerial (Join-Path $out "phone-main.png")
 
-# Phone sources dialog (tap button area on 1080x2400)
-& $adb -s $PhoneSerial shell input tap 540 980
-Start-Sleep -Seconds 2
-Capture-Screen $PhoneSerial (Join-Path $out "phone-sources.png")
-& $adb -s $PhoneSerial shell input keyevent 4
-
 # Wear main
 & $adb -s $WearSerial shell am force-stop com.wearalarmsync
 & $adb -s $WearSerial shell monkey -p com.wearalarmsync -c android.intent.category.LAUNCHER 1 | Out-Null

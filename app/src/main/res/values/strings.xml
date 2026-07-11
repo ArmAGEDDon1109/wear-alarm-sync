@@ -23,9 +23,9 @@
     <string name="sync_now">Синхронизировать</string>
     <string name="sync_in_progress">Подготовка…</string>
     <string name="sync_progress_title">Прогресс</string>
-    <string name="sync_step_1_done">Шаг 1/2 — следующий будильник прочитан</string>
-    <string name="sync_step_2_run">Шаг 2/2 — отправка на часы…</string>
-    <string name="sync_step_2_done">Шаг 2/2 — данные записаны в Data Layer</string>
+    <string name="sync_step_1_done">Чтение будильников : ОК</string>
+    <string name="sync_step_2_run">Data Layer…</string>
+    <string name="sync_step_2_done">Data Layer : ОК</string>
     <string name="sync_watch_ok">Готово: запись на часах обновлена.</string>
     <string name="sync_watch_failed">Ошибка записи: %1$s\nПроверьте пару в OHealth, одинаковый app id и подпись APK на телефоне и часах.</string>
     <string name="no_alarm_today">На сегодня будильников не установлено.</string>

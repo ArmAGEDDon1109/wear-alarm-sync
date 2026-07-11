@@ -3,11 +3,14 @@ package com.wearalarmsync.phone
 import android.app.AlarmManager
 import android.content.Context
 import android.os.Bundle
+import android.text.InputType
+import android.text.SpannableStringBuilder
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.util.TypedValue
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -16,15 +19,16 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.android.material.appbar.MaterialToolbar
-import com.google.android.material.checkbox.MaterialCheckBox
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.wearable.Wearable
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.checkbox.MaterialCheckBox
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.wearalarmsync.AlarmSyncPrefs
 import com.wearalarmsync.BuildConfig
 import com.wearalarmsync.ExactAlarmPermission
@@ -79,7 +83,6 @@ class PhoneMainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.alarmSourcesButton).setOnClickListener {
             showAlarmSourcesDialog(status)
         }
-        updateAlarmSourcesSummary()
 
         refreshWatchConnection(connection)
         status.text = describeNextAlarm()
@@ -170,20 +173,8 @@ class PhoneMainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshWatchConnection(findViewById(R.id.connectionText))
-        updateAlarmSourcesSummary()
         AlarmSync.pushNextAlarm(this)
         VibrationSync.push(this)
-    }
-
-    private fun updateAlarmSourcesSummary() {
-        val summaryView = findViewById<TextView>(R.id.alarmSourcesSummary)
-        val allowed = AlarmSyncPrefs.allowedPackages(this)
-        if (allowed.isEmpty()) {
-            summaryView.text = getString(R.string.phone_alarm_sources_none)
-            return
-        }
-        val labels = allowed.map { AlarmSourceApps.displayLabelFor(this, it) }
-        summaryView.text = getString(R.string.phone_alarm_sources_summary, labels.joinToString(", "))
     }
 
     private fun showAlarmSourcesDialog(status: TextView) {
@@ -230,7 +221,6 @@ class PhoneMainActivity : AppCompatActivity() {
     ) {
         val selected = checkboxes.filterValues { it.isChecked }.keys
         AlarmSyncPrefs.writeAllowedPackages(this, selected)
-        updateAlarmSourcesSummary()
         AlarmSync.pushNextAlarm(this)
         status.text = describeNextAlarm()
     }
@@ -327,15 +317,12 @@ class PhoneMainActivity : AppCompatActivity() {
         progress.visibility = View.VISIBLE
 
         val summary = describeNextAlarm()
-        status.text = buildString {
-            append(getString(R.string.sync_progress_title))
-            append("\n✓ ")
-            append(getString(R.string.sync_step_1_done))
-            append("\n⋯ ")
-            append(getString(R.string.sync_step_2_run))
-            append("\n\n")
-            append(summary)
-        }
+        status.text = buildSyncProgressText(
+            step1Done = true,
+            step2Done = false,
+            summary = summary,
+            tail = null,
+        )
 
         AlarmSync.pushNextAlarm(this).addOnCompleteListener { task ->
             val tail = if (task.isSuccessful) {
@@ -344,21 +331,62 @@ class PhoneMainActivity : AppCompatActivity() {
                 val err = task.exception?.message ?: task.exception?.javaClass?.simpleName
                 getString(R.string.sync_watch_failed, err ?: "unknown")
             }
-            status.text = buildString {
-                append(getString(R.string.sync_progress_title))
-                append("\n✓ ")
-                append(getString(R.string.sync_step_1_done))
-                append("\n✓ ")
-                append(getString(R.string.sync_step_2_done))
-                append("\n\n")
-                append(summary)
-                append("\n\n")
-                append(tail)
-            }
+            status.text = buildSyncProgressText(
+                step1Done = true,
+                step2Done = true,
+                summary = summary,
+                tail = tail,
+            )
             progress.visibility = View.GONE
             syncButton.isEnabled = true
             refreshWatchConnection(connectionText)
             VibrationSync.push(this@PhoneMainActivity)
+        }
+    }
+
+    private fun buildSyncProgressText(
+        step1Done: Boolean,
+        step2Done: Boolean,
+        summary: String,
+        tail: String?,
+    ): CharSequence {
+        val green = ContextCompat.getColor(this, R.color.alarm_dismiss_green)
+        val text = SpannableStringBuilder()
+        text.append(getString(R.string.sync_progress_title))
+        text.append('\n')
+        appendProgressMark(text, done = step1Done, green = green)
+        text.append(getString(R.string.sync_step_1_done))
+        text.append('\n')
+        appendProgressMark(text, done = step2Done, green = green)
+        text.append(
+            if (step2Done) {
+                getString(R.string.sync_step_2_done)
+            } else {
+                getString(R.string.sync_step_2_run)
+            },
+        )
+        if (summary.isNotBlank()) {
+            text.append("\n\n")
+            text.append(summary)
+        }
+        if (!tail.isNullOrBlank()) {
+            text.append("\n\n")
+            text.append(tail)
+        }
+        return text
+    }
+
+    private fun appendProgressMark(text: SpannableStringBuilder, done: Boolean, green: Int) {
+        val mark = if (done) "✓ " else "⋯ "
+        val start = text.length
+        text.append(mark)
+        if (done) {
+            text.setSpan(
+                ForegroundColorSpan(green),
+                start,
+                start + 1,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
         }
     }
 
@@ -376,9 +404,8 @@ class PhoneMainActivity : AppCompatActivity() {
             return noToday
         }
         if (!AlarmSourceRecognizer.isAllowedSource(next, allowed)) {
-            val pkg = AlarmSourceRecognizer.creatorPackage(next)
-            val appLabel = pkg?.let { AlarmSourceApps.displayLabelFor(this, it) } ?: "?"
-            return getString(R.string.phone_source_not_allowed, appLabel ?: "?")
+            // Не показываем сообщение про приложение вне списка источников.
+            return ""
         }
         val synced = NextAlarmResolver.triggerForWatchSync(raw, now)
         if (NextAlarmResolver.wasFilteredAsMidnightGhost(raw, synced, now)) {

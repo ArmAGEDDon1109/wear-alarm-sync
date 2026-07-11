@@ -64,7 +64,7 @@ $trigger = [int64]((Get-Date).Date.AddDays(1).AddHours(7).AddMinutes(30).ToUnive
 ### GitHub Release
 
 1. Откройте https://github.com/ArmAGEDDon1109/wear-alarm-sync/releases
-2. **Edit** релиза `v2.2.0`
+2. **Edit** релиза `v2.2.1`
 3. Перетащите PNG в описание или вставьте:
 
 ```markdown
@@ -95,6 +95,5 @@ $trigger = [int64]((Get-Date).Date.AddDays(1).AddHours(7).AddMinutes(30).ToUnive
 | Файл | Экран |
 |------|--------|
 | `phone-main.png` | Главный экран телефона |
-| `phone-sources.png` | Диалог «Источники будильников» |
 | `wear-main.png` | Главный экран часов |
 | `wear-alarm.png` | Срабатывание будильника (зелёная/красная кнопки) |

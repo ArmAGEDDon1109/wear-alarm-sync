@@ -4,6 +4,17 @@
 
 ---
 
+## 2.2.1
+
+### Phone UI
+
+- Sync progress lines use clearer labels with green checkmarks: **Reading alarms : OK** and **Data Layer : OK**.
+- Removed the status message when the next alarm comes from an app outside the allowed sources list.
+- Removed the selected-apps summary under the **Alarm sources** button (selection still works in the dialog).
+- Updated screenshots; dropped the unused `phone-sources.png` image from README/docs.
+
+---
+
 ## 2.2.0
 
 ### Alarm sources (phone)
