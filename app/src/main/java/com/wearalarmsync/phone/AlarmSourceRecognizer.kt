@@ -29,12 +29,30 @@ object AlarmSourceRecognizer {
         return creator
     }
 
+    /**
+     * @return true, если будильник разрешён к синхронизации на часы.
+     * [creatorPackage] недоступен на API < 31 и когда `showIntent`/`creatorPackage` отсутствуют —
+     * в этом случае фильтр по источнику технически неприменим, и мы **пропускаем** будильник
+     * (fail-open), а не блокируем его: иначе на Android 8–11 будильник никогда бы не синхронизировался.
+     */
     fun isAllowedSource(next: AlarmManager.AlarmClockInfo?, allowedPackages: Set<String>): Boolean {
+        if (next == null) return false
+        return isAllowedForCreator(creatorPackage(next), allowedPackages)
+    }
+
+    /**
+     * Чистое ядро решения без Android framework типов (тестируется юнит-тестами без Robolectric/mock).
+     * @param creatorPackage результат [creatorPackage], либо `null`, если источник неопределим.
+     */
+    fun isAllowedForCreator(creatorPackage: String?, allowedPackages: Set<String>): Boolean {
         if (allowedPackages.isEmpty()) return false
-        val creator = creatorPackage(next) ?: return false
-        val allowed = allowedPackages.contains(creator)
+        if (creatorPackage == null) {
+            Log.d(TAG, "Cannot determine alarm source package (API<31 or no showIntent); allowing sync")
+            return true
+        }
+        val allowed = allowedPackages.contains(creatorPackage)
         if (!allowed) {
-            Log.d(TAG, "nextAlarmClock creator=$creator not in allowed set")
+            Log.d(TAG, "nextAlarmClock creator=$creatorPackage not in allowed set")
         }
         return allowed
     }

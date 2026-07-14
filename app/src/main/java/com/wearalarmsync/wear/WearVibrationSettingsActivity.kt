@@ -2,7 +2,6 @@ package com.wearalarmsync.wear
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,6 +24,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,9 +64,9 @@ class WearVibrationSettingsActivity : ComponentActivity() {
         setContent {
             ComposeMaterialTheme(colorScheme = darkColorScheme()) {
             MaterialTheme {
-                var intensity by remember { mutableStateOf(initial.intensityPercent.toFloat()) }
-                var pulse by remember { mutableStateOf(initial.pulseMs.toFloat()) }
-                var gap by remember { mutableStateOf(initial.gapMs.toFloat()) }
+                var intensity by remember { mutableFloatStateOf(initial.intensityPercent.toFloat()) }
+                var pulse by remember { mutableFloatStateOf(initial.pulseMs.toFloat()) }
+                var gap by remember { mutableFloatStateOf(initial.gapMs.toFloat()) }
                 var suppress by suppressOffBody
 
                 fun currentSettings(): VibrationSettings =
@@ -100,7 +100,7 @@ class WearVibrationSettingsActivity : ComponentActivity() {
                             checked = suppress,
                             onCheckedChange = { want ->
                                 if (want) {
-                                    if (needBodySensorsRuntime() && !hasBodySensors()) {
+                                    if (!hasBodySensors()) {
                                         bodySensorsPermission.launch(Manifest.permission.BODY_SENSORS)
                                     } else {
                                         WearAlarmPrefs.setSuppressWhenOffBody(
@@ -216,7 +216,4 @@ class WearVibrationSettingsActivity : ComponentActivity() {
     private fun hasBodySensors(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.BODY_SENSORS) ==
             PackageManager.PERMISSION_GRANTED
-
-    private fun needBodySensorsRuntime(): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
 }

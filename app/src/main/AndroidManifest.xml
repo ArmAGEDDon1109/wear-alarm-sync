@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Lint (InvalidWearFeatureAttribute) ожидает Wear-only APK с required="true", но это
+         намеренно универсальный APK для телефона и часов (см. README «Architecture») —
+         required="false" обязателен, иначе установка на телефон будет заблокирована Play/PackageManager. -->
     <uses-feature
         android:name="android.hardware.type.watch"
-        android:required="false" />
+        android:required="false"
+        tools:ignore="InvalidWearFeatureAttribute" />
 
     <queries>
         <intent>
@@ -12,6 +17,11 @@
         <intent>
             <action android:name="android.intent.action.SNOOZE_ALARM" />
         </intent>
+        <!-- Package visibility (API 30+): без этого queryIntentActivities(ACTION_SET_ALARM)
+             в AlarmSourceApps.fromSetAlarmHandlers может вернуть пустой список. -->
+        <intent>
+            <action android:name="android.intent.action.SET_ALARM" />
+        </intent>
     </queries>
 
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -19,7 +29,12 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- Lint (ProtectedPermissions) считает это system-only по protectionLevel, но с API 31
+         это специальное разрешение, доступное обычным приложениям категории "alarm" через
+         Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM (см. ExactAlarmPermission.kt). -->
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.BODY_SENSORS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -44,7 +59,8 @@
         <activity
             android:name=".LauncherActivity"
             android:exported="true"
-            android:theme="@android:style/Theme.DeviceDefault.DayNight">
+            android:taskAffinity=""
+            android:theme="@style/Theme.WearAlarmSync.Launcher">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -54,6 +70,7 @@
         <activity
             android:name=".phone.PhoneMainActivity"
             android:exported="false"
+            android:taskAffinity=""
             android:theme="@style/Theme.WearAlarmSync.Phone" />
 
         <activity
@@ -68,6 +85,9 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.DeviceDefault" />
 
+        <!-- showWhenLocked/turnScreenOn: no-op на minSdk 26-27 (атрибуты с API 27) — на этих
+             версиях AlarmActivity.showOnLockScreen() ставит эквивалентные FLAG_SHOW_WHEN_LOCKED /
+             FLAG_TURN_SCREEN_ON программно; здесь оставлены для более раннего эффекта на API 27+. -->
         <activity
             android:name=".wear.AlarmActivity"
             android:exported="false"
@@ -76,7 +96,8 @@
             android:showWhenLocked="true"
             android:taskAffinity=""
             android:theme="@android:style/Theme.DeviceDefault"
-            android:turnScreenOn="true" />
+            android:turnScreenOn="true"
+            tools:ignore="UnusedAttribute" />
 
         <receiver
             android:name=".phone.NextAlarmReceiver"

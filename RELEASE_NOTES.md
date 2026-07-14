@@ -4,6 +4,30 @@
 
 ---
 
+## 2.2.2
+
+### Bug fixes
+
+- **Alarm source filtering could block all alarms from syncing** on Android 11 and below (or whenever the alarm's source app couldn't be determined, e.g. missing `showIntent`). It now fails **open** (allows the sync) instead of failing closed.
+- Fixed empty **"Set alarm" handler** detection on Android 11+: added the required `<queries>` declaration for `ACTION_SET_ALARM` (package visibility).
+- Watch: rescheduling alarms after **reboot** no longer risks freezing the UI — the Data Layer read now runs off the main thread.
+- Watch: the full-screen alarm notification now checks the **notification permission** before posting and no longer risks a crash if permission is missing or revoked.
+- Watch: the keep-alive foreground service no longer crashes if the OS denies `startForeground` (stops itself instead).
+- Fixed a possible **crash on Android 8.0/8.1 watches**: the launcher screen referenced a theme that only exists starting Android 10.
+- Fixed an invalid notification-channel importance constant for the alarm channel (was using a non-existent value; now `IMPORTANCE_HIGH`).
+- Hardened `NextAlarmReceiver` against spoofed intents with no/incorrect action.
+- Added missing Russian translations for two strings that showed up in English in an otherwise Russian UI.
+
+### Build, tests & release safety
+
+- Release builds now **refuse to silently fall back to debug signing** when `keystore.properties` is missing, unless you explicitly pass `-PallowDebugSignedRelease=true`.
+- Added a GitHub Actions **CI workflow**: unit tests, lint, and a debug build run on every push/PR.
+- Added unit tests for the sync, vibration, and midnight-filter logic.
+- Fixed all lint errors and cleaned up ~20 unused resources (dead strings, colors, duplicate icon files); remaining lint baseline is limited to a handful of dependency-version warnings blocked by the current AGP version.
+- Bumped AndroidX Core, AppCompat, Material, Play Services Wearable, and Coroutines to their latest AGP-compatible versions.
+
+---
+
 ## 2.2.1
 
 ### Phone UI

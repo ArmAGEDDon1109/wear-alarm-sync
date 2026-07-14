@@ -12,7 +12,8 @@ plugins {
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
 val keystoreProperties = Properties()
-if (keystorePropertiesFile.exists()) {
+val hasKeystoreProperties = keystorePropertiesFile.exists()
+if (hasKeystoreProperties) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
@@ -24,12 +25,12 @@ android {
         applicationId = "com.wearalarmsync"
         minSdk = 26
         targetSdk = 35
-        versionCode = 30
-        versionName = "2.2.1"
+        versionCode = 31
+        versionName = "2.2.2"
     }
 
     signingConfigs {
-        if (keystorePropertiesFile.exists()) {
+        if (hasKeystoreProperties) {
             create("release") {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
@@ -46,7 +47,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = if (keystorePropertiesFile.exists()) {
+            // Без keystore.properties здесь временно используется debug-подпись только для того,
+            // чтобы граф задач сконфигурировался; реальная сборка блокируется ниже
+            // (см. `assembleRelease`/`bundleRelease` doFirst), если не передан allowDebugSignedRelease.
+            signingConfig = if (hasKeystoreProperties) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")
@@ -66,14 +70,64 @@ android {
         compose = true
         buildConfig = true
     }
+
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
+    lint {
+        // Единственное, что осталось в baseline — 7 предупреждений GradleDependency
+        // (compose-bom/wear-compose/activity-compose/lifecycle), упирающихся в потолок AGP 8.7.2:
+        // более новые версии либо требуют AGP 9.x + compileSdk 37 (activity/core-ktx),
+        // либо тянут androidx.compose.runtime >= 1.9, из-за чего сам lint 8.7.2 падает с
+        // IncompatibleClassChangeError в RememberInCompositionDetector. Проверено эмпирически
+        // 14.07.2026 — при обновлении AGP снять baseline и попробовать актуальные версии снова.
+        baseline = file("lint-baseline.xml")
+
+        // По умолчанию values/strings.xml — русский (основной язык приложения); values-ru
+        // патчит только несколько случайно оставленных английских строк (например app_name — бренд,
+        // намеренно на английском). Это не полноценная EN+RU локализация "шаблон + переводы",
+        // поэтому проверка на полное совпадение ключей между values/ и values-ru/ здесь неприменима.
+        disable += "MissingTranslation"
+
+        // app_icon.png — единственный источник adaptive-icon foreground layer (432x432,
+        // сгенерирован задачей prepareAppIcon), по дизайну без density-вариантов — это
+        // рекомендованный Android подход для adaptive icons, а не ошибка.
+        disable += "IconLocation"
+    }
+}
+
+/**
+ * Без keystore.properties release-вариант конфигурируется с debug-подписью (см. выше), чтобы не ломать
+ * `./gradlew tasks` / IDE sync. Но реально СОБРАТЬ release без релизного ключа — тихая и опасная ошибка
+ * (можно случайно выпустить неподписанный релизной подписью APK). Поэтому явно фейлим выполнение
+ * assembleRelease/bundleRelease, если ключ не найден, если только не передан флаг для намеренной
+ * debug-подписанной локальной тестовой сборки: `-PallowDebugSignedRelease=true`.
+ */
+val allowDebugSignedRelease = (findProperty("allowDebugSignedRelease") as String?)?.toBoolean() ?: false
+tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach {
+    doFirst {
+        if (!hasKeystoreProperties && !allowDebugSignedRelease) {
+            throw GradleException(
+                "keystore.properties not found — release build would be signed with the DEBUG key.\n" +
+                    "Copy keystore.properties.example -> keystore.properties and fill in your signing " +
+                    "credentials before building a release.\n" +
+                    "To intentionally build a debug-signed release for local testing, pass " +
+                    "-PallowDebugSignedRelease=true.",
+            )
+        }
+        if (!hasKeystoreProperties) {
+            logger.warn("WARNING: building release APK signed with the DEBUG key (allowDebugSignedRelease=true)")
+        }
+    }
 }
 
 dependencies {
     implementation(project(":core"))
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.material:material:1.12.0")
-    implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    implementation("androidx.core:core-ktx:1.16.0")
+    implementation("androidx.appcompat:appcompat:1.7.1")
+    implementation("com.google.android.material:material:1.14.0")
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
     implementation(platform("androidx.compose:compose-bom:2025.01.00"))
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
@@ -85,7 +139,9 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    testImplementation("junit:junit:4.13.2")
 }
 
 /**

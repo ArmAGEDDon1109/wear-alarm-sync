@@ -1,5 +1,6 @@
 package com.wearalarmsync.wear
 
+import android.annotation.SuppressLint
 import android.app.ActivityOptions
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -21,6 +22,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class AlarmReceiver : BroadcastReceiver() {
+    // WearRecents: NEW_TASK/CLEAR_TOP/SINGLE_TOP обязательны для надёжного запуска AlarmActivity
+    // из broadcast-приёмника без родительского task (см. showAlarmUiOnMainThread ниже про BAL).
+    @SuppressLint("WearRecents")
     override fun onReceive(context: Context, intent: Intent?) {
         Log.i(TAG, "AlarmReceiver fired")
         AlarmScheduler.markAlarmBroadcastConsumed(context)

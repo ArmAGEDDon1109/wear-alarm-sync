@@ -118,6 +118,9 @@ class AlarmCommandListenerService : WearableListenerService() {
         }
     }
 
+    // WearRecents: этот intent запускает системные Часы на ТЕЛЕФОНЕ (см. Device.isWatch выше) —
+    // рекомендация lint про Wear recents здесь неприменима, но проверка срабатывает на весь universal APK.
+    @android.annotation.SuppressLint("WearRecents")
     private fun buildAlarmClockIntent(action: String) = Intent(action).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.ALARM_SEARCH_MODE_NEXT)

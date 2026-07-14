@@ -27,6 +27,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -65,7 +66,7 @@ private data class WearMainLines(
 
 class WearMainActivity : ComponentActivity() {
 
-    private val linesRefreshTick = mutableStateOf(0)
+    private val linesRefreshTick = mutableIntStateOf(0)
 
     /** API 31+: пока false — система не дала точные будильники; диалога нет, только экран настроек. */
     private val exactAlarmBlocked = mutableStateOf(false)
@@ -252,7 +253,7 @@ class WearMainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             AlarmScheduler.rescheduleFromDataLayer(this@WearMainActivity)
             withContext(Dispatchers.Main) {
-                linesRefreshTick.value = linesRefreshTick.value + 1
+                linesRefreshTick.intValue += 1
             }
         }
     }

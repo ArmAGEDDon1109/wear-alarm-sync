@@ -205,6 +205,9 @@ object AlarmScheduler {
      * @param allowNoAlarmOverFuture после отложенного повтора: принудительно применить [NO_ALARM], даже если локально
      * ещё висит будущий [setAlarmClock] (иначе транзиентный NO_ALARM между двумя будильниками снимал бы второй).
      */
+    // WearRecents: legacyActivity PendingIntent (обход BAL на OPLUS Wear, см. комментарий ниже) собран
+    // с NEW_TASK/CLEAR_TOP намеренно — без них лаунч из фонового процесса не проходит на части прошивок.
+    @android.annotation.SuppressLint("WearRecents")
     fun scheduleOrCancel(
         context: Context,
         triggerMs: Long,
@@ -351,15 +354,13 @@ object AlarmScheduler {
     }
 
     private fun scheduleWithFallback(context: Context, am: AlarmManager, triggerMs: Long, alarmPi: PendingIntent) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            try {
-                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMs, alarmPi)
-                storeLastRingMs(context, triggerMs)
-                Log.w(TAG, "Fallback: setExactAndAllowWhileIdle at $triggerMs")
-                return
-            } catch (e: SecurityException) {
-                Log.w(TAG, "setExactAndAllowWhileIdle denied", e)
-            }
+        try {
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerMs, alarmPi)
+            storeLastRingMs(context, triggerMs)
+            Log.w(TAG, "Fallback: setExactAndAllowWhileIdle at $triggerMs")
+            return
+        } catch (e: SecurityException) {
+            Log.w(TAG, "setExactAndAllowWhileIdle denied", e)
         }
         @Suppress("DEPRECATION")
         am.set(AlarmManager.RTC_WAKEUP, triggerMs, alarmPi)

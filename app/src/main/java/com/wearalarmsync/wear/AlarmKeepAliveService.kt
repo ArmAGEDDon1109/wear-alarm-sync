@@ -7,7 +7,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -28,9 +27,16 @@ class AlarmKeepAliveService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // intent == null возможен при перезапуске системой после kill (START_STICKY) —
+        // время сигнала неизвестно, но сервис обязан вызвать startForeground немедленно.
         val triggerMs = intent?.getLongExtra(EXTRA_TRIGGER_MS, -1L) ?: -1L
         Log.d(TAG, "onStartCommand triggerMs=$triggerMs")
-        startForeground(NOTIFICATION_ID, buildNotification(triggerMs))
+        try {
+            startForeground(NOTIFICATION_ID, buildNotification(triggerMs))
+        } catch (e: Exception) {
+            Log.e(TAG, "startForeground failed, stopping self", e)
+            stopSelf()
+        }
         return START_STICKY
     }
 
@@ -74,7 +80,6 @@ class AlarmKeepAliveService : Service() {
         const val EXTRA_TRIGGER_MS = "trigger_ms"
 
         fun ensureChannel(context: Context) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (nm.getNotificationChannel(CHANNEL_ID) != null) return
             val ch = NotificationChannel(
@@ -97,11 +102,7 @@ class AlarmKeepAliveService : Service() {
                 putExtra(EXTRA_TRIGGER_MS, triggerMs)
             }
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    app.startForegroundService(intent)
-                } else {
-                    app.startService(intent)
-                }
+                app.startForegroundService(intent)
                 Log.d(TAG, "start triggerMs=$triggerMs")
             } catch (e: Exception) {
                 Log.e(TAG, "start failed", e)

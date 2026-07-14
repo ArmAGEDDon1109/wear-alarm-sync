@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.WearAlarmSync.Phone" parent="Theme.Material3.DayNight.NoActionBar" />
+
+    <!-- android:Theme.DeviceDefault.DayNight требует API 29 (см. values-v29/themes.xml для override);
+         здесь — безопасный вариант для minSdk 26-28 (просто DeviceDefault, без DayNight). -->
+    <style name="Theme.WearAlarmSync.Launcher" parent="android:Theme.DeviceDefault" />
 </resources>

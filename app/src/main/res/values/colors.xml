@@ -1,8 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#1565C0</color>
-    <color name="midnight_filter_on">#2E7D32</color>
-    <color name="midnight_filter_off">#C62828</color>
     <color name="alarm_dismiss_green">#2E7D32</color>
     <color name="alarm_snooze_red">#C62828</color>
 </resources>

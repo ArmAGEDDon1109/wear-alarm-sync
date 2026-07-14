@@ -1,13 +1,18 @@
 package com.wearalarmsync.wear
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.wearalarmsync.R
 import com.wearalarmsync.common.WearSync
 
@@ -16,20 +21,20 @@ import com.wearalarmsync.common.WearSync
  * из [PendingIntent] будильника часто блокируется (BAL); FSI — типичный обход для категории alarm.
  */
 object WearAlarmNotifier {
+    private const val TAG = "WearAlarmNotifier"
     const val NOTIFICATION_ID: Int = 94031
     private const val CHANNEL_ID = "wear_alarm_ring"
     private const val PI_FULL_SCREEN = 94032
     private const val PI_CONTENT = 94033
 
     fun ensureChannel(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val app = context.applicationContext
         val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (nm.getNotificationChannel(CHANNEL_ID) != null) return
         val ch = NotificationChannel(
             CHANNEL_ID,
             app.getString(R.string.alarm_title),
-            NotificationManager.IMPORTANCE_MAX,
+            NotificationManager.IMPORTANCE_HIGH,
         ).apply {
             description = app.getString(R.string.wear_alarm_channel_desc)
             lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
@@ -39,6 +44,9 @@ object WearAlarmNotifier {
         nm.createNotificationChannel(ch)
     }
 
+    // WearRecents: NEW_TASK/CLEAR_TOP обязательны — activity запускается из full-screen intent
+    // уведомления вне какого-либо task, без них лаунч на части Wear OEM не проходит.
+    @SuppressLint("WearRecents")
     fun showFullScreenAlarm(context: Context, triggerMs: Long) {
         val app = context.applicationContext
         ensureChannel(app)
@@ -67,10 +75,32 @@ object WearAlarmNotifier {
             .setOngoing(true)
             .setDefaults(0)
 
-        NotificationManagerCompat.from(app).notify(NOTIFICATION_ID, builder.build())
+        if (!hasNotificationPermission(app)) {
+            // Без разрешения FSI-уведомление не появится (тихо проигнорируется системой),
+            // но экран будильника всё равно запускается напрямую из AlarmReceiver — не блокируем звонок.
+            Log.w(TAG, "POST_NOTIFICATIONS not granted, skipping notify() (alarm UI still launched directly)")
+            return
+        }
+        try {
+            NotificationManagerCompat.from(app).notify(NOTIFICATION_ID, builder.build())
+        } catch (e: SecurityException) {
+            Log.e(TAG, "notify() denied", e)
+        }
     }
 
     fun cancel(context: Context) {
-        NotificationManagerCompat.from(context.applicationContext).cancel(NOTIFICATION_ID)
+        try {
+            NotificationManagerCompat.from(context.applicationContext).cancel(NOTIFICATION_ID)
+        } catch (e: SecurityException) {
+            Log.e(TAG, "cancel() denied", e)
+        }
+    }
+
+    private fun hasNotificationPermission(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
     }
 }

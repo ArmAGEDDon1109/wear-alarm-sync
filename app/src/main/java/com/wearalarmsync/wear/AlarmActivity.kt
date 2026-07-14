@@ -1,5 +1,6 @@
 package com.wearalarmsync.wear
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
@@ -186,6 +187,10 @@ class AlarmActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
     }
 
+    // Lint предлагает освобождать wakelock в onPause, но здесь это единственный полноэкранный
+    // экран будильника с 10-секундным авто-таймаутом на acquire(): держим его до onDestroy,
+    // чтобы CPU не спал в момент ухода активности в фон (например при уходе в настройки вибрации).
+    @SuppressLint("Wakelock")
     override fun onDestroy() {
         stopCallLikeVibration()
         alarmWakeLock?.let { if (it.isHeld) it.release() }

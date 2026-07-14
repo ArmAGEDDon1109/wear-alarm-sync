@@ -1,0 +1,14 @@
+Release v2.2.2: alarm-sync bugfixes, lint cleanup, CI pipeline
+
+Fixes several real bugs found during review: alarm-source filtering
+failing closed on API<31 (blocked all syncing), missing SET_ALARM
+package-visibility query, a possible ANR on watch boot reschedule, an
+unguarded startForeground/notify crash risk, an invalid notification
+importance constant, an unsafe protected-broadcast receiver, and a
+theme crash risk on Android 8.0/8.1 watches.
+
+Also adds a GitHub Actions CI workflow, unit tests for the core sync
+logic, a release-signing safety guard against accidental debug-signed
+releases, and a broad lint cleanup (dead SDK checks, unused resources,
+Compose state boxing, missing RU strings) that brings the project from
+74 lint errors down to zero.
