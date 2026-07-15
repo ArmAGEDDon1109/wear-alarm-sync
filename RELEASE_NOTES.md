@@ -4,6 +4,26 @@
 
 ---
 
+## 2.2.3
+
+### Fixes
+
+- Fixed an Android Gradle Plugin manifest merger error in the `core` module: removed an obsolete `package=` attribute and a dead, duplicate `LauncherActivity` declaration (the real activity only lives in the `app` module).
+- Fixed a GitHub Actions CI warning about running on the deprecated Node.js 20 runtime by updating `android-actions/setup-android` and `actions/upload-artifact` to current versions.
+
+### New
+
+- Added a full English translation (`values-en`) alongside the existing Russian default — the app now has real multi-language support.
+- Added a `Dockerfile` so the APK can be built in a container without installing the Android SDK locally.
+
+### Code quality & tooling
+
+- Enabled the Gradle Dependency Updates Plugin (`./gradlew dependencyUpdates`) to track outdated dependencies going forward.
+- Refactored `AlarmScheduler`'s delayed resync retry from `Handler`/`postDelayed` to Kotlin Coroutines.
+- Replaced the Dismiss/Snooze string commands sent between phone and watch with a type-safe sealed class (`AlarmCommand`). The wire format sent over the Data Layer is unchanged, so this release stays compatible with an older app version on the other device.
+
+---
+
 ## 2.2.2
 
 ### Bug fixes
