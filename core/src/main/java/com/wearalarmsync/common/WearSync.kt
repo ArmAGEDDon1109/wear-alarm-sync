@@ -31,6 +31,4 @@ object WearSync {
     const val KEY_VIB_PULSE_MS = "vib_pulse_ms"
     const val KEY_VIB_GAP_MS = "vib_gap_ms"
     const val NO_ALARM = -1L
-    const val CMD_DISMISS = "DISMISS"
-    const val CMD_SNOOZE = "SNOOZE"
 }

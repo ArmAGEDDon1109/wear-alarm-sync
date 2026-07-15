@@ -82,6 +82,17 @@ gradlew.bat syncReleaseApks   # Windows
 
 Output: `build/apk/release/wear-alarm-sync-universal-release.apk`
 
+### Building without a local Android SDK (Docker)
+
+If you don't have the Android SDK installed, build inside a container instead:
+
+```bash
+docker build -t wear-alarm-sync-build .
+docker run --rm -v "${PWD}/build:/workspace/build" wear-alarm-sync-build
+```
+
+Output: `build/apk/debug/wear-alarm-sync-universal-debug.apk`. See comments in `Dockerfile` for the release-build variant.
+
 ## GitHub release pipeline
 
 CI builds a signed release APK and publishes a [GitHub Release](https://docs.github.com/en/repositories/releasing-projects-on-github) when you push a version tag.

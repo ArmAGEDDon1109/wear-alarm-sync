@@ -3,6 +3,23 @@ plugins {
     id("com.android.library") version "8.7.2" apply false
     id("org.jetbrains.kotlin.android") version "2.0.21" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
+    id("com.github.ben-manes.versions") version "0.54.0"
+}
+
+/**
+ * `./gradlew dependencyUpdates` — отчёт об устаревших зависимостях (build/dependencyUpdates/report.txt).
+ * Отсеиваем нестабильные версии (alpha/beta/rc/M/preview), чтобы отчёт предлагал только релизы,
+ * пригодные для реального обновления в проекте.
+ */
+tasks.named<com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask>("dependencyUpdates").configure {
+    rejectVersionIf {
+        val unstableKeyword = listOf("alpha", "beta", "rc", "m", "preview", "eap")
+            .any { candidate.version.lowercase().contains(it) }
+        val isUnstableCandidate = unstableKeyword && !currentVersion.lowercase().let { cur ->
+            listOf("alpha", "beta", "rc", "m", "preview", "eap").any { cur.contains(it) }
+        }
+        isUnstableCandidate
+    }
 }
 
 /** Один универсальный APK (телефон + часы) → `build/apk/…`. */

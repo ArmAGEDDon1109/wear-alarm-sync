@@ -11,6 +11,7 @@ import android.util.Log
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
 import com.wearalarmsync.Device
+import com.wearalarmsync.common.AlarmCommand
 import com.wearalarmsync.common.WearSync
 
 class AlarmCommandListenerService : WearableListenerService() {
@@ -33,33 +34,34 @@ class AlarmCommandListenerService : WearableListenerService() {
             return
         }
 
-        val cmd = try {
+        val rawCmd = try {
             String(messageEvent.data, Charsets.UTF_8)
         } catch (e: Exception) {
             Log.e(TAG, "onMessageReceived: Failed to decode command data", e)
             return
         }
+        val cmd = AlarmCommand.fromWire(rawCmd)
 
-        Log.d(TAG, "onMessageReceived: Command from watch: $cmd")
+        Log.d(TAG, "onMessageReceived: Command from watch: $rawCmd")
         mainHandler.post {
             try {
                 when (cmd) {
-                    WearSync.CMD_DISMISS -> {
+                    AlarmCommand.Dismiss -> {
                         Log.d(TAG, "onMessageReceived: Processing DISMISS command")
                         dispatchAlarmClockAction(AlarmClock.ACTION_DISMISS_ALARM, REQUEST_DISMISS)
                         schedulePushNextAlarmToWatch()
                     }
-                    WearSync.CMD_SNOOZE -> {
+                    AlarmCommand.Snooze -> {
                         Log.d(TAG, "onMessageReceived: Processing SNOOZE command")
                         dispatchAlarmClockAction(AlarmClock.ACTION_SNOOZE_ALARM, REQUEST_SNOOZE)
                         schedulePushNextAlarmToWatch()
                     }
-                    else -> {
-                        Log.w(TAG, "onMessageReceived: Unknown command: $cmd")
+                    null -> {
+                        Log.w(TAG, "onMessageReceived: Unknown command: $rawCmd")
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "onMessageReceived: Exception processing command $cmd", e)
+                Log.e(TAG, "onMessageReceived: Exception processing command $rawCmd", e)
             }
         }
     }

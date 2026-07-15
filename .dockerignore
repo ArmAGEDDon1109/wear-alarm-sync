@@ -1,0 +1,16 @@
+.git
+.gradle
+.idea
+.cursor
+build
+**/build
+adb
+log
+logs
+*.iml
+local.properties
+keystore.properties
+*.jks
+*.keystore
+ci-release.keystore
+docs

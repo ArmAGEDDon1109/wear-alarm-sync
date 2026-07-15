@@ -82,6 +82,17 @@ gradlew.bat syncReleaseApks   # Windows
 
 Результат: `build/apk/release/wear-alarm-sync-universal-release.apk`
 
+### Сборка без локального Android SDK (Docker)
+
+Если Android SDK не установлен, можно собрать APK в контейнере:
+
+```bash
+docker build -t wear-alarm-sync-build .
+docker run --rm -v "${PWD}/build:/workspace/build" wear-alarm-sync-build
+```
+
+Результат: `build/apk/debug/wear-alarm-sync-universal-debug.apk`. Вариант для release-сборки — в комментариях `Dockerfile`.
+
 ## Сборка релиза на GitHub
 
 CI собирает подписанный release APK и публикует [GitHub Release](https://docs.github.com/en/repositories/releasing-projects-on-github) при push тега версии.

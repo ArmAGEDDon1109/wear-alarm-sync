@@ -5,8 +5,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import kotlin.jvm.Volatile
 import com.google.android.gms.common.ConnectionResult
@@ -17,10 +15,22 @@ import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.Wearable
 import com.wearalarmsync.common.AlarmToday
 import com.wearalarmsync.common.WearSync
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 object AlarmScheduler {
     private const val TAG = "AlarmScheduler"
     private const val REQUEST_CODE = 94001
+
+    /**
+     * Собственный scope вместо [android.os.Handler]: [AlarmScheduler] — singleton без жизненного
+     * цикла своего компонента, поэтому нужен долгоживущий scope, а не привязанный к Activity/Service.
+     * [SupervisorJob] — сбой одного отложенного ретрая не должен ронять последующие.
+     */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private const val PREFS = "alarm_scheduler_state"
     private const val KEY_LAST_RING_MS = "last_scheduled_ring_ms"
@@ -228,9 +238,10 @@ object AlarmScheduler {
                     "NO_ALARM from Data Layer but local ring at $lastRing (now=$now) — deferred resync (transient gap)",
                 )
                 val appCtx = app.applicationContext
-                Handler(Looper.getMainLooper()).postDelayed({
+                scope.launch {
+                    delay(5_000L)
                     rescheduleFromDataLayer(appCtx, allowNoAlarmOverFuture = true)
-                }, 5_000L)
+                }
                 return
             }
         }

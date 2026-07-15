@@ -34,6 +34,7 @@ import androidx.wear.compose.material3.Text
 import com.wearalarmsync.R
 import com.wearalarmsync.VibrationAlarmPattern
 import com.wearalarmsync.VibrationPrefs
+import com.wearalarmsync.common.AlarmCommand
 import com.wearalarmsync.common.WearSync
 import com.wearalarmsync.ui.ColoredAlarmButton
 import kotlinx.coroutines.Dispatchers
@@ -118,7 +119,7 @@ class AlarmActivity : ComponentActivity() {
                                     return@launch
                                 }
                                 val ok = withContext(Dispatchers.IO) {
-                                    PhoneCommand.send(this@AlarmActivity, WearSync.CMD_DISMISS)
+                                    PhoneCommand.send(this@AlarmActivity, AlarmCommand.Dismiss)
                                 }
                                 status = if (ok) "" else getString(R.string.no_phone)
                                 busy = false
@@ -145,7 +146,7 @@ class AlarmActivity : ComponentActivity() {
                                     return@launch
                                 }
                                 val ok = withContext(Dispatchers.IO) {
-                                    PhoneCommand.send(this@AlarmActivity, WearSync.CMD_SNOOZE)
+                                    PhoneCommand.send(this@AlarmActivity, AlarmCommand.Snooze)
                                 }
                                 status = if (ok) "" else getString(R.string.no_phone)
                                 busy = false
