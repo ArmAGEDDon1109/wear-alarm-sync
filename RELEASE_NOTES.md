@@ -10,6 +10,7 @@
 
 - Fixed an Android Gradle Plugin manifest merger error in the `core` module: removed an obsolete `package=` attribute and a dead, duplicate `LauncherActivity` declaration (the real activity only lives in the `app` module).
 - Fixed a GitHub Actions CI warning about running on the deprecated Node.js 20 runtime by updating `android-actions/setup-android` and `actions/upload-artifact` to current versions.
+- **Watch:** fixed a stale alarm screen when returning to the app via Wear OS double-press back — after the alarm has finished, the alarm UI and call-like vibration no longer reappear (session validation on leave/focus loss, and `AlarmActivity` excluded from recents).
 
 ### New
 

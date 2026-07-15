@@ -2,12 +2,15 @@ package com.wearalarmsync.wear
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
+import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -49,6 +52,10 @@ class AlarmActivity : ComponentActivity() {
 
     private var alarmWakeLock: PowerManager.WakeLock? = null
     private var vibrationRunning: Boolean = false
+    private var triggerMs: Long = WearSync.NO_ALARM
+    private var returnedFromBackground: Boolean = false
+    private var lostWindowFocus: Boolean = false
+    private var checkingStaleOnResume: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -61,7 +68,7 @@ class AlarmActivity : ComponentActivity() {
         WearAlarmNotifier.cancel(this)
         showOnLockScreen()
 
-        val triggerMs = intent.getLongExtra(WearSync.KEY_TRIGGER_MS, WearSync.NO_ALARM)
+        triggerMs = intent.getLongExtra(WearSync.KEY_TRIGGER_MS, WearSync.NO_ALARM)
         val timeLabel = if (triggerMs > 0L) {
             DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(triggerMs))
         } else {
@@ -163,14 +170,83 @@ class AlarmActivity : ComponentActivity() {
             }
         }
 
-        // Вибратор после attach окна (на части Wear вибра в onCreate до setContent глушится).
-        window.decorView.post { startCallLikeVibration() }
+        scheduleRingSessionValidation(startVibrationIfValid = true)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        triggerMs = intent.getLongExtra(WearSync.KEY_TRIGGER_MS, WearSync.NO_ALARM)
+        returnedFromBackground = false
+        lostWindowFocus = false
+        scheduleRingSessionValidation(startVibrationIfValid = true)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (returnedFromBackground || lostWindowFocus) {
+            returnedFromBackground = false
+            scheduleRingSessionValidation(startVibrationIfValid = true)
+        }
+    }
+
+    override fun onPause() {
+        stopCallLikeVibration()
+        returnedFromBackground = true
+        super.onPause()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        val sessionTrigger = triggerMs
+        lifecycleScope.launch {
+            val next = withContext(Dispatchers.IO) {
+                AlarmScheduler.readBestSyncedTriggerOrNull(applicationContext)
+            }
+            if (!isFinishing && shouldCloseStaleSession(sessionTrigger, next)) {
+                runOnUiThread {
+                    if (!isFinishing) closeStaleRingSession()
+                }
+            }
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus && !vibrationRunning) {
+        if (!hasFocus) {
+            lostWindowFocus = true
+            stopCallLikeVibration()
+            return
+        }
+        if (lostWindowFocus) {
+            lostWindowFocus = false
+            scheduleRingSessionValidation(startVibrationIfValid = true)
+            return
+        }
+        if (!vibrationRunning && !checkingStaleOnResume) {
             window.decorView.post { startCallLikeVibration() }
+        }
+    }
+
+    private fun scheduleRingSessionValidation(startVibrationIfValid: Boolean) {
+        if (checkingStaleOnResume) return
+        checkingStaleOnResume = true
+        val sessionTrigger = triggerMs
+        lifecycleScope.launch {
+            try {
+                val next = withContext(Dispatchers.IO) {
+                    AlarmScheduler.readBestSyncedTriggerOrNull(this@AlarmActivity)
+                }
+                if (isFinishing) return@launch
+                if (shouldCloseStaleSession(sessionTrigger, next)) {
+                    Log.i(TAG, "stale ring session trigger=$sessionTrigger next=$next — closing")
+                    closeStaleRingSession()
+                } else if (startVibrationIfValid && !vibrationRunning) {
+                    window.decorView.post { startCallLikeVibration() }
+                }
+            } finally {
+                checkingStaleOnResume = false
+            }
         }
     }
 
@@ -243,9 +319,46 @@ class AlarmActivity : ComponentActivity() {
         return true
     }
 
+    /**
+     * Закрыть «зомби»-экран: возврат из recents / FSI / потеря фокуса на Wear, когда звонок уже прошёл.
+     * В активном окне вокруг [sessionTrigger] не закрываем — иначе гонка NO_ALARM сразу после срабатывания.
+     */
+    private fun shouldCloseStaleSession(sessionTrigger: Long, nextFromPhone: Long?): Boolean {
+        if (sessionTrigger <= 0L) return true
+        val now = System.currentTimeMillis()
+        if (now >= sessionTrigger - RING_WINDOW_BEFORE_MS &&
+            now <= sessionTrigger + POST_RING_NO_ALARM_GRACE_MS
+        ) {
+            return false
+        }
+        if (nextFromPhone == null || nextFromPhone == WearSync.NO_ALARM) return true
+        if (nextFromPhone > now && abs(nextFromPhone - sessionTrigger) <= SESSION_MATCH_MS) {
+            return false
+        }
+        return true
+    }
+
+    private fun closeStaleRingSession() {
+        WearAlarmNotifier.cancel(this)
+        stopCallLikeVibration()
+        startActivity(
+            Intent(this, WearMainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            },
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            finishAndRemoveTask()
+        } else {
+            finish()
+        }
+    }
+
     private companion object {
+        private const val TAG = "AlarmActivity"
         private const val SESSION_MATCH_MS = 120_000L
         private const val RING_WINDOW_BEFORE_MS = 60_000L
         private const val RING_WINDOW_AFTER_MS = 15 * 60_000L
+        /** Как [AlarmScheduler] POST_RING_IGNORE_NO_ALARM_MS — гонка NO_ALARM сразу после звонка. */
+        private const val POST_RING_NO_ALARM_GRACE_MS = 10_000L
     }
 }

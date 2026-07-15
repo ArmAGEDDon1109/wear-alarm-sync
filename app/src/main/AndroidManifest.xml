@@ -91,6 +91,7 @@
         <activity
             android:name=".wear.AlarmActivity"
             android:exported="false"
+            android:excludeFromRecents="true"
             android:launchMode="singleTop"
             android:showOnLockScreen="true"
             android:showWhenLocked="true"
